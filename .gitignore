@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+
+comments.csv
+sentiment_results.csv
+
+.twitter_state.json
+
+.env
+
+.idea/
+.vscode/
