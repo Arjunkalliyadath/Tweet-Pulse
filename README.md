@@ -1,4 +1,4 @@
-# Comment Signal — Twitter/X Sentiment Analyzer
+# Tweet-Pulse — Twitter/X Sentiment Analyzer
 
 Point it at a tweet, and it pulls the replies, scores each one for sentiment, and lays the whole conversation out on a dashboard: how people reacted, which comments actually drove that reaction, and what the post looked like in the first place.
 
