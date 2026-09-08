@@ -4,6 +4,8 @@ __pycache__/
 
 comments.csv
 sentiment_results.csv
+tweet_meta.json
+static/tweet_screenshot.png
 
 .twitter_state.json
 

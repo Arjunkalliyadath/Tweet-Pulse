@@ -1,98 +1,222 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en" data-theme="dark">
 <head>
-
-    <title>Twitter Sentiment Analyzer</title>
-
-    <link
-        rel="stylesheet"
-        href="/static/style.css"
-    >
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comment Signal — Twitter/X Sentiment Analyzer</title>
+<link rel="stylesheet" href="/static/style.css">
 </head>
-
 <body>
 
-<div class="container">
+<div class="page">
 
-    <h1>
-        Twitter / X Sentiment Analyzer
-    </h1>
+  <header class="site-header">
+    <div class="brand">
+      <span class="brand__mark">Comment Signal</span>
+      <span class="brand__tagline">Sentiment analysis for X/Twitter posts</span>
+    </div>
+    <div class="site-header__actions">
+      {% if has_data %}
+      <a class="btn" href="/download-csv">Download CSV</a>
+      {% endif %}
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle light and dark theme">
+        <span class="theme-toggle__knob"></span>
+      </button>
+    </div>
+  </header>
 
-    <div class="main-card">
+  {% if not has_data %}
 
-        <h2>Total Comments Analyzed</h2>
+  <section class="empty-state">
+    <h1>No analysis yet</h1>
+    <p>Run the collection scripts below from the project folder, then reload this page.</p>
+    <ol>
+      <li>
+        Open a tweet's replies:
+        <code>python extract_comments.py</code>
+        and paste the tweet URL when asked.
+      </li>
+      <li>
+        Classify what was collected:
+        <code>python sentiment_comments.py</code>
+      </li>
+    </ol>
+  </section>
 
-        <h1>{{ total }}</h1>
+  {% else %}
 
+  {% if tweet_meta %}
+  <section class="hero-capture {% if not tweet_meta.screenshot_url %}hero-capture--text-only{% endif %}">
+    {% if tweet_meta.screenshot_url %}
+    <div class="hero-capture__frame">
+      <img src="{{ tweet_meta.screenshot_url }}" alt="Screenshot of the analyzed post">
+    </div>
+    {% endif %}
+    <div class="hero-capture__meta">
+      <p class="hero-capture__label">Source post</p>
+      {% if tweet_meta.author %}
+      <p class="hero-capture__author">{{ tweet_meta.author }}{% if tweet_meta.handle %} <span>{{ tweet_meta.handle }}</span>{% endif %}</p>
+      {% endif %}
+      {% if tweet_meta.text %}
+      <p class="hero-capture__text">"{{ tweet_meta.text }}"</p>
+      {% endif %}
+      {% if tweet_meta.url %}
+      <a class="hero-capture__link" href="{{ tweet_meta.url }}" target="_blank" rel="noopener">Open the original post</a>
+      {% endif %}
+    </div>
+  </section>
+  {% else %}
+  <p class="hero-note">No source post was captured for this run — re-run extract_comments.py to show it here.</p>
+  {% endif %}
+
+  <section class="readout">
+    <div class="readout__total">
+      <span class="readout__number" id="total-number" data-count-to="{{ total }}">0</span>
+      <span class="readout__label">comments analyzed</span>
     </div>
 
-    <div class="grid">
-
-        <div class="positive card">
-
-            <h3>Positive 😊</h3>
-
-            <h1>{{ positive }}</h1>
-
-            <p>{{ positive_pct }}%</p>
-
-        </div>
-
-        <div class="neutral card">
-
-            <h3>Neutral 😐</h3>
-
-            <h1>{{ neutral }}</h1>
-
-            <p>{{ neutral_pct }}%</p>
-
-        </div>
-
-        <div class="negative card">
-
-            <h3>Negative 😠</h3>
-
-            <h1>{{ negative }}</h1>
-
-            <p>{{ negative_pct }}%</p>
-
-        </div>
-
+    <div class="readout__middle">
+      <div class="readout__bar">
+        <div class="readout__segment readout__segment--positive" data-target-width="{{ positive_pct }}" style="width:0%">{% if positive_pct > 8 %}{{ positive }}{% endif %}</div>
+        <div class="readout__segment readout__segment--neutral" data-target-width="{{ neutral_pct }}" style="width:0%">{% if neutral_pct > 8 %}{{ neutral }}{% endif %}</div>
+        <div class="readout__segment readout__segment--negative" data-target-width="{{ negative_pct }}" style="width:0%">{% if negative_pct > 8 %}{{ negative }}{% endif %}</div>
+      </div>
+      <ul class="readout__legend">
+        <li class="readout__legend-item">
+          <span class="dot dot--positive"></span>
+          <span class="readout__legend-label">Positive</span>
+          <span class="readout__legend-value">{{ positive }} <small>({{ positive_pct }}%)</small></span>
+        </li>
+        <li class="readout__legend-item">
+          <span class="dot dot--neutral"></span>
+          <span class="readout__legend-label">Neutral</span>
+          <span class="readout__legend-value">{{ neutral }} <small>({{ neutral_pct }}%)</small></span>
+        </li>
+        <li class="readout__legend-item">
+          <span class="dot dot--negative"></span>
+          <span class="readout__legend-label">Negative</span>
+          <span class="readout__legend-value">{{ negative }} <small>({{ negative_pct }}%)</small></span>
+        </li>
+      </ul>
     </div>
 
-    <h2>
-        Analyzed Comments
-    </h2>
+    <div class="readout__dial" id="confidence-dial" data-target-pct="{{ avg_confidence }}">
+      <div class="readout__dial-face">
+        <span id="confidence-number">0%</span>
+        <small>avg. confidence</small>
+      </div>
+    </div>
+  </section>
 
-    <table>
+  {% if trending_words %}
+  <section class="trending">
+    <h2>Words that came up often</h2>
+    <ul class="trending__list">
+      {% for word, count in trending_words %}
+      <li class="trending__chip" style="--weight:{{ count }}">{{ word }} <span>{{ count }}</span></li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
 
-        <tr>
-            <th>Comment</th>
-            <th>Sentiment</th>
-        </tr>
+  <section class="browser">
+    <div class="browser__controls">
+      <div class="tabs" role="tablist">
+        <button class="tabs__tab is-active" data-tab="random" role="tab" aria-selected="true">Random sample <small>{{ random_sample|length }}</small></button>
+        <button class="tabs__tab" data-tab="positive" role="tab" aria-selected="false">Top positive <small>{{ top_positive|length }}</small></button>
+        <button class="tabs__tab" data-tab="neutral" role="tab" aria-selected="false">Top neutral <small>{{ top_neutral|length }}</small></button>
+        <button class="tabs__tab" data-tab="negative" role="tab" aria-selected="false">Top negative <small>{{ top_negative|length }}</small></button>
+        <button class="tabs__tab" data-tab="all" role="tab" aria-selected="false">All comments <small>{{ total }}</small></button>
+        <span class="tabs__indicator"></span>
+      </div>
+      <div class="browser__search">
+        <input type="search" id="comment-search" placeholder="Search comments" aria-label="Search comments">
+        <select id="sentiment-filter" aria-label="Filter by sentiment">
+          <option value="all">All sentiments</option>
+          <option value="positive">Positive only</option>
+          <option value="neutral">Neutral only</option>
+          <option value="negative">Negative only</option>
+        </select>
+      </div>
+    </div>
 
-        {% for row in comments %}
+    <div class="tab-panel is-active" data-panel="random">
+      {% for row in random_sample %}
+      <div class="transcript-line transcript-line--{{ row.sentiment }}">
+        <span class="transcript-line__tick"></span>
+        <p class="transcript-line__text">{{ row.comment }}</p>
+        <span class="transcript-line__meta">
+          <span class="transcript-line__score">{{ (row.score * 100) | round(1) }}%</span>
+          <span class="transcript-line__sentiment">{{ row.sentiment }}</span>
+        </span>
+      </div>
+      {% else %}
+      <p class="empty-note">Nothing here yet.</p>
+      {% endfor %}
+    </div>
 
-        <tr>
+    <div class="tab-panel" data-panel="positive">
+      {% for row in top_positive %}
+      <div class="transcript-line transcript-line--positive">
+        <span class="transcript-line__tick"></span>
+        <p class="transcript-line__text">{{ row.comment }}</p>
+        <span class="transcript-line__meta">
+          <span class="transcript-line__score">{{ (row.score * 100) | round(1) }}%</span>
+          <span class="transcript-line__sentiment">positive</span>
+        </span>
+      </div>
+      {% else %}
+      <p class="empty-note">No positive comments found.</p>
+      {% endfor %}
+    </div>
 
-            <td>
-                {{ row.comment }}
-            </td>
+    <div class="tab-panel" data-panel="neutral">
+      {% for row in top_neutral %}
+      <div class="transcript-line transcript-line--neutral">
+        <span class="transcript-line__tick"></span>
+        <p class="transcript-line__text">{{ row.comment }}</p>
+        <span class="transcript-line__meta">
+          <span class="transcript-line__score">{{ (row.score * 100) | round(1) }}%</span>
+          <span class="transcript-line__sentiment">neutral</span>
+        </span>
+      </div>
+      {% else %}
+      <p class="empty-note">No neutral comments found.</p>
+      {% endfor %}
+    </div>
 
-            <td>
-                {{ row.sentiment }}
-            </td>
+    <div class="tab-panel" data-panel="negative">
+      {% for row in top_negative %}
+      <div class="transcript-line transcript-line--negative">
+        <span class="transcript-line__tick"></span>
+        <p class="transcript-line__text">{{ row.comment }}</p>
+        <span class="transcript-line__meta">
+          <span class="transcript-line__score">{{ (row.score * 100) | round(1) }}%</span>
+          <span class="transcript-line__sentiment">negative</span>
+        </span>
+      </div>
+      {% else %}
+      <p class="empty-note">No negative comments found.</p>
+      {% endfor %}
+    </div>
 
-        </tr>
+    <div class="tab-panel" data-panel="all">
+      <div id="all-list"></div>
+      <button class="load-more" id="load-more" hidden>Load more comments</button>
+    </div>
+  </section>
 
-        {% endfor %}
+  {% endif %}
 
-    </table>
+  <footer class="site-footer">
+    <span>Built with FastAPI, Playwright, HuggingFace Transformers and Pandas.</span>
+    {% if has_data %}<span>Last generated {{ generated_at }}</span>{% endif %}
+  </footer>
 
 </div>
 
-</body>
+<script id="all-comments-data" type="application/json">{{ comments_json | safe }}</script>
+<script src="/static/script.js" defer></script>
 
+</body>
 </html>
