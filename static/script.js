@@ -5,7 +5,7 @@
 
   /* ---------------- theme toggle ---------------- */
 
-  var THEME_KEY = "comment-signal-theme";
+  var THEME_KEY = "tweet-pulse-theme";
   var toggle = document.getElementById("theme-toggle");
   var savedTheme = null;
 

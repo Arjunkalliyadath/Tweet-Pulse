@@ -4,12 +4,22 @@ Point it at a tweet, and it pulls the replies, scores each one for sentiment, an
 
 ![Dashboard preview](assets/dashboard-preview.png)
 
+## Contents
+
+- [How it works](#how-it-works)
+- [Dashboard features](#dashboard-features)
+- [Setup](#setup)
+- [Running it](#running-it)
+- [Troubleshooting](#troubleshooting)
+- [Project structure](#project-structure)
+- [Notes and limitations](#notes-and-limitations)
+
 ## How it works
 
 The project is three small stages that hand off to each other through plain CSV/JSON files — no database required.
 
 ```
-extract_comments.py  ──▶  comments.csv, tweet_meta.json, static/tweet_screenshot.png
+extract_comments.py   ──▶  comments.csv, tweet_meta.json, static/tweet_screenshot.png
 sentiment_comments.py ──▶  sentiment_results.csv
 app.py (dashboard)     ──▶  reads sentiment_results.csv + tweet_meta.json
 ```
@@ -29,22 +39,55 @@ app.py (dashboard)     ──▶  reads sentiment_results.csv + tweet_meta.json
 
 ## Setup
 
-### 1. Install dependencies
+You need Python 3.10+ and Google Chrome installed. Do this once.
+
+**1. Get the code and open a terminal in the project folder.**
+
+**2. Create and activate a virtual environment.**
 
 ```bash
 python -m venv venv
-source venv/bin/activate        # venv\Scripts\activate on Windows
+```
+
+```bash
+# Windows (PowerShell)
+.\venv\Scripts\Activate.ps1
+
+# macOS / Linux
+source venv/bin/activate
+```
+
+Your terminal prompt should now start with `(venv)`.
+
+**3. Install the Python dependencies.**
+
+```bash
 pip install -r requirements.txt
+```
+
+`transformers` and `torch` are large (a few hundred MB combined) — this can take a few minutes.
+
+**4. Install the Playwright browser.**
+
+```bash
 playwright install chromium
 ```
 
-### 2. Open a logged-in Chrome window with remote debugging on
+This downloads a standalone Chromium build that Playwright drives separately from your regular Chrome. Also one-time, also needs internet.
 
-`extract_comments.py` reuses a real, already-logged-in browser session instead of automating its own login (X/Twitter's login flow is not friendly to automation, and you almost certainly don't want to hand your credentials to a script).
+Setup is done. You won't need to repeat any of the above unless you delete `venv/` or change `requirements.txt`.
+
+## Running it
+
+Every time you want to analyze a tweet, do these four steps in order.
+
+**1. Fully close Chrome.** Every window — and check there's no `chrome.exe` left in your Task Manager (Windows) or Activity Monitor (Mac) in the background. This matters: if Chrome is already running, a new launch won't pick up the debugging flag below.
+
+**2. Open Chrome with remote debugging enabled**, in a separate terminal window (leave it running):
 
 ```bash
-# Windows
-chrome.exe --remote-debugging-port=9222
+# Windows (PowerShell)
+& "C:\Program Files\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222
 
 # macOS
 open -a "Google Chrome" --args --remote-debugging-port=9222
@@ -53,36 +96,50 @@ open -a "Google Chrome" --args --remote-debugging-port=9222
 google-chrome --remote-debugging-port=9222
 ```
 
-Log into x.com in that window if you aren't already. You only need to do this once per Chrome profile.
+Log into x.com in that window if you aren't already logged in.
 
-### 3. Collect comments from a tweet
+**3. Collect comments from a tweet.** Back in your `(venv)` terminal:
 
 ```bash
 python extract_comments.py
 ```
 
-Paste the tweet URL when prompted. It scrolls the replies for a while and stops once no new comments show up for several scrolls in a row, then writes `comments.csv`, `tweet_meta.json` and `static/tweet_screenshot.png`.
+When it asks for a URL, paste the **plain tweet URL** — just `https://x.com/<user>/status/<id>`, not a link ending in `/photo/1` or `/video/1`, which opens a media overlay instead of the normal page. It scrolls the replies for a while and stops automatically once nothing new shows up, then writes `comments.csv`, `tweet_meta.json`, and a screenshot of the original post.
 
-### 4. Run sentiment analysis
+**4. Run sentiment analysis:**
 
 ```bash
 python sentiment_comments.py
 ```
 
-The first run downloads the model (a few hundred MB) and caches it locally; later runs are fast. This writes `sentiment_results.csv`.
+The very first run downloads the model and caches it locally, so it pauses for a bit; every run after that is fast. This writes `sentiment_results.csv`.
 
-### 5. Launch the dashboard
+**5. Launch the dashboard:**
 
 ```bash
 uvicorn app:app --reload
 ```
 
-Open **http://127.0.0.1:8000**.
+Open **http://127.0.0.1:8000** in your browser. To analyze a different tweet later, just repeat steps 3–4 (you can leave the dashboard running and refresh the page).
+
+## Troubleshooting
+
+**`Could not connect to Chrome on port 9222`**
+Chrome was already running before you added the flag. Close every Chrome window, confirm no `chrome.exe` process is left in Task Manager/Activity Monitor, then relaunch it with the `--remote-debugging-port=9222` command above. You can double-check it worked by visiting `http://127.0.0.1:9222/json/version` in that window — you should see raw JSON, not an error.
+
+**Comment collection returns 0 or very few comments**
+X/Twitter changes its page structure occasionally, which can break the selectors `extract_comments.py` looks for. Also double check you passed the plain status URL, not a `/photo/…` or `/video/…` link.
+
+**The dashboard shows "No analysis yet"**
+That means `sentiment_results.csv` doesn't exist yet in the project folder — run steps 3–4 above first.
+
+**`pip install` seems to hang on `torch`**
+It's genuinely a large download (\~200MB+); give it a few minutes, especially on a slower connection.
 
 ## Project structure
 
 ```
-twitter-sentiment-analyzer/
+Tweet-Pulse/
 ├── app.py                  # FastAPI dashboard
 ├── extract_comments.py     # Scrapes replies + captures the source post
 ├── sentiment_comments.py   # Runs sentiment classification
