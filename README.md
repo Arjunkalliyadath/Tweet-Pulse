@@ -163,3 +163,9 @@ Tweet-Pulse/
 ## Tech stack
 
 Python, FastAPI, Playwright, HuggingFace Transformers, Pandas, and a hand-built HTML/CSS/JS dashboard (no frontend framework, no chart library).
+
+## Author
+
+**Arjun K**
+- GitHub: [@Arjunkalliyadath](https://github.com/Arjunkalliyadath)
+- Email: arjunkalliyadath2001@gmail.com
